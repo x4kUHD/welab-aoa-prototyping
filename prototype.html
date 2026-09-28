@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard Prototype</title>
+<style>
+  :root {
+    --border: #e5e5e5;
+    --text: #111;
+    --muted: #8a8a8a;
+    --blue: #2563eb;
+    --bg: #fafafa;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--text);
+    background: #fff;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .back-link {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.95rem;
+  }
+
+  .back-link:hover { color: var(--text); }
+
+  .divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+
+  .avatar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+
+  .avatar img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  main {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 32px;
+    background: var(--bg);
+    min-height: calc(100vh - 73px);
+  }
+
+  .parish-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .parish-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px;
+  }
+
+  .parish-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .parish-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    background: #f2f2f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #b5b5b5;
+  }
+
+  .parish-name {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.3rem;
+    margin: 0 0 4px 0;
+  }
+
+  .parish-meta {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .parish-meta a {
+    color: var(--blue);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .last-updated {
+    text-align: right;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .last-updated strong {
+    display: block;
+    color: var(--text);
+    font-size: 0.95rem;
+    margin-top: 2px;
+  }
+
+  .upload-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .upload-label {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .segmented {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .segmented button {
+    border: none;
+    background: #fff;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    color: var(--text);
+  }
+
+  .segmented button.active {
+    background: #111;
+    color: #fff;
+  }
+
+  .btn-outline {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    color: var(--text);
+  }
+
+  .btn-outline:hover { background: #f5f5f5; }
+
+  nav.tabs {
+    display: flex;
+    gap: 28px;
+    padding: 0 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  nav.tabs button {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 16px 0;
+    font-size: 0.95rem;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  nav.tabs button.active {
+    color: var(--text);
+    font-weight: 600;
+    border-bottom-color: var(--text);
+  }
+
+  nav.tabs button:hover:not(.active) {
+    color: var(--text);
+  }
+
+  .tab-panel {
+    display: none;
+    margin-top: 24px;
+  }
+
+  .tab-panel.active {
+    display: block;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .panel {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+  }
+
+  .panel-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .panel-title h2 {
+    font-size: 1.05rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .panel-empty {
+    padding: 40px 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .badge .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  .badge.red { background: #fee2e2; color: #991b1b; }
+  .badge.red .dot { background: #ef4444; }
+  .badge.yellow { background: #fef3c7; color: #92400e; }
+  .badge.yellow .dot { background: #f59e0b; }
+  .badge.green { background: #d1fae5; color: #065f46; }
+  .badge.green .dot { background: #10b981; }
+  .badge.blue { background: #dbeafe; color: #1e40af; }
+  .badge.blue .dot { background: #3b82f6; }
+
+  .add-link {
+    color: var(--blue);
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  .history-group-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .history-item {
+    border-left: 2px solid var(--border);
+    padding: 0 0 14px 14px;
+    margin-left: 3px;
+    position: relative;
+  }
+
+  .history-item::before {
+    content: "";
+    position: absolute;
+    left: -5px;
+    top: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+
+  .history-item.blue::before { background: #3b82f6; }
+  .history-item.green::before { background: #10b981; }
+
+  .history-item:last-child { padding-bottom: 0; }
+
+  .history-item .title {
+    font-size: 0.92rem;
+  }
+
+  .history-item .date {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .placeholder-panel {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 60px 24px;
+    text-align: center;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <a class="back-link" href="#">&larr; Parishes</a>
+    <div class="divider"></div>
+    <h1>Dashboard</h1>
+  </div>
+  <div class="avatar">
+    <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=user" alt="User avatar" />
+    <span>&#9662;</span>
+  </div>
+</header>
+
+<main>
+  <div class="parish-card">
+    <div class="parish-header">
+      <div class="parish-info">
+        <div class="parish-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 10.5 12 3l9 7.5" />
+            <path d="M5 9.5V21h14V9.5" />
+          </svg>
+        </div>
+        <div>
+          <p class="parish-name">test parish name</p>
+          <span class="parish-meta">1 building &nbsp; <a href="#">Manage &#9662;</a></span>
+        </div>
+      </div>
+      <div class="last-updated">
+        Last updated
+        <strong>Sep 18, 2026</strong>
+      </div>
+    </div>
+
+    <div class="upload-row">
+      <span class="upload-label">Upload:</span>
+      <div class="segmented">
+        <button class="active" type="button">Utility</button>
+        <button type="button">Appraisal</button>
+      </div>
+      <button class="btn-outline" type="button">+ Add Files</button>
+    </div>
+
+    <nav class="tabs" id="tabs">
+      <button class="active" data-tab="dashboard" type="button">Dashboard</button>
+      <button data-tab="utility-use" type="button">Utility Use</button>
+      <button data-tab="building-valuations" type="button">Building Valuations</button>
+      <button data-tab="active-risks" type="button">Active Risks</button>
+      <button data-tab="finances" type="button">Finances</button>
+      <button data-tab="history" type="button">History</button>
+    </nav>
+  </div>
+
+  <div id="panels">
+    <section class="tab-panel active" id="panel-dashboard">
+      <div class="grid">
+        <div class="col">
+          <div class="panel">
+            <div class="panel-title">
+              <h2>Active Risks &amp; Backlog &rarr;</h2>
+              <div class="badges">
+                <span class="badge red"><span class="dot"></span>0</span>
+                <span class="badge yellow"><span class="dot"></span>0</span>
+                <span class="badge green"><span class="dot"></span>0</span>
+                <span class="badge blue"><span class="dot"></span>1</span>
+                <span class="add-link">+ Add</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">
+              <h2>Utility Use &rarr;</h2>
+            </div>
+            <div class="panel-empty">Upload utility bills to see trends.</div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="panel">
+            <div class="panel-title">
+              <h2>Finances &rarr;</h2>
+            </div>
+            <div class="panel-empty">Upload data to see estimates.</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">
+              <h2>History &rarr;</h2>
+            </div>
+            <div class="history-group-label">SEP 2026</div>
+            <div class="history-item blue">
+              <div class="title">Uploaded utility document: erickimCV.pdf</div>
+              <div class="date">Sep 18, 2026</div>
+            </div>
+            <div class="history-item green">
+              <div class="title">Task addressed: 123</div>
+              <div class="date">Sep 18, 2026</div>
+            </div>
+            <div class="history-item">
+              <div class="title">Task added: "123" for test building</div>
+              <div class="date">Sep 18, 2026</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="panel-utility-use">
+      <div class="placeholder-panel">Utility Use</div>
+    </section>
+
+    <section class="tab-panel" id="panel-building-valuations">
+      <div class="placeholder-panel">Building Valuations</div>
+    </section>
+
+    <section class="tab-panel" id="panel-active-risks">
+      <div class="placeholder-panel">Active Risks</div>
+    </section>
+
+    <section class="tab-panel" id="panel-finances">
+      <div class="placeholder-panel">Finances</div>
+    </section>
+
+    <section class="tab-panel" id="panel-history">
+      <div class="placeholder-panel">History</div>
+    </section>
+  </div>
+</main>
+
+<script>
+  const tabs = document.querySelectorAll('#tabs button');
+  const panels = document.querySelectorAll('.tab-panel');
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      tabs.forEach((t) => t.classList.remove('active'));
+      panels.forEach((p) => p.classList.remove('active'));
+
+      tab.classList.add('active');
+      document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>
