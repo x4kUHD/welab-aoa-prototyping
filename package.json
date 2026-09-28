@@ -1,0 +1,9 @@
+{
+  "name": "welab-aoa-prototyping",
+  "version": "0.0.0",
+  "private": true,
+  "description": "HTML prototypes for WeLab AOA feature work",
+  "scripts": {
+    "dev": "npx serve . -l 3000"
+  }
+}
