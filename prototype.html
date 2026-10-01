@@ -349,6 +349,145 @@
     text-align: center;
     color: var(--muted);
   }
+
+  /* ---- Assets tab ---- */
+  .asset-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .stat {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+
+  .stat .label { color: var(--muted); font-size: 0.82rem; }
+  .stat .value { font-size: 1.5rem; font-family: Georgia, "Times New Roman", serif; margin-top: 4px; }
+  .stat .value.red { color: #b91c1c; }
+
+  .asset-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .asset-toolbar input[type="search"],
+  .asset-toolbar select,
+  .asset-form input,
+  .asset-form select {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: #fff;
+  }
+
+  .asset-toolbar .spacer { flex: 1; }
+
+  .btn-primary {
+    border: none;
+    background: #111;
+    color: #fff;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  .asset-form {
+    display: none;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .asset-form.open { display: grid; }
+  .asset-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--muted); }
+  .asset-form .actions { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; }
+
+  .table-wrap { overflow-x: auto; }
+
+  table.assets {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  table.assets th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 0.78rem;
+    color: var(--muted);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  table.assets th.num, table.assets td.num { text-align: right; }
+  table.assets td { padding: 11px 12px; border-bottom: 1px solid #f0f0f0; }
+  table.assets tr:last-child td { border-bottom: none; }
+  table.assets .name { font-weight: 500; }
+  table.assets .sub { color: var(--muted); font-size: 0.8rem; }
+  table.assets tr.due .name { color: #b91c1c; }
+  table.assets tr.accrual-hdr th { cursor: default; }
+
+  .life-bar {
+    display: inline-block;
+    width: 60px;
+    height: 6px;
+    background: #eee;
+    border-radius: 3px;
+    overflow: hidden;
+    vertical-align: middle;
+    margin-left: 8px;
+  }
+
+  .life-bar span { display: block; height: 100%; background: #10b981; }
+  .life-bar.warn span { background: #f59e0b; }
+  .life-bar.bad span { background: #ef4444; }
+
+  .doc-btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .doc-btn:hover { background: #f5f5f5; }
+
+  dialog.docs {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    width: 440px;
+    max-width: 92vw;
+  }
+
+  dialog.docs::backdrop { background: rgba(0, 0, 0, 0.3); }
+  dialog.docs h3 { margin: 0 0 2px; font-family: Georgia, "Times New Roman", serif; }
+  dialog.docs ul { list-style: none; padding: 0; margin: 14px 0; }
+  dialog.docs li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.9rem;
+  }
+  dialog.docs li button { border: none; background: none; color: var(--muted); cursor: pointer; }
+  dialog.docs .empty { color: var(--muted); font-size: 0.9rem; padding: 12px 0; }
+  dialog.docs .foot { display: flex; justify-content: space-between; align-items: center; }
 </style>
 </head>
 <body>
@@ -462,7 +601,53 @@
     </section>
 
     <section class="tab-panel" id="panel-assets">
-      <div class="placeholder-panel">Assets</div>
+      <div class="asset-stats">
+        <div class="stat"><div class="label">Tracked assets</div><div class="value" id="stat-count">0</div></div>
+        <div class="stat"><div class="label">Due / past life (&le; 1 yr)</div><div class="value red" id="stat-due">0</div></div>
+        <div class="stat"><div class="label">Total initial cost</div><div class="value" id="stat-cost">$0</div></div>
+        <div class="stat"><div class="label">Annual accrual</div><div class="value" id="stat-accrual">$0</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="asset-toolbar">
+          <input type="search" id="asset-search" placeholder="Search asset, location, manufacturer" size="34" />
+          <select id="asset-location"><option value="">All locations</option></select>
+          <div class="segmented" id="asset-view">
+            <button class="active" data-view="details" type="button">Details</button>
+            <button data-view="plan" type="button">10-Year Accrual Plan</button>
+          </div>
+          <span class="spacer"></span>
+          <button class="btn-primary" id="asset-add-toggle" type="button">+ Add Asset</button>
+        </div>
+
+        <form class="asset-form" id="asset-form">
+          <label>Asset name<input name="name" required placeholder="e.g. Admin HVAC #5" /></label>
+          <label>Location<input name="location" required placeholder="e.g. Admin Building" /></label>
+          <label>Manufacturer<input name="manufacturer" placeholder="e.g. Trane" /></label>
+          <label>Year installed<input name="installed" type="number" min="1950" max="2026" value="2026" required /></label>
+          <label>Expected life (yrs)<input name="life" type="number" min="1" required /></label>
+          <label>Initial cost ($)<input name="cost" type="number" min="0" required /></label>
+          <label style="grid-column: 1 / -1">Manuals / instructions
+            <input name="manuals" id="asset-manuals" type="file" multiple />
+          </label>
+          <div class="actions">
+            <button class="btn-outline" type="button" id="asset-cancel">Cancel</button>
+            <button class="btn-primary" type="submit">Save asset</button>
+          </div>
+        </form>
+
+        <div class="table-wrap"><table class="assets" id="asset-table"></table></div>
+      </div>
+
+      <dialog class="docs" id="docs-dialog">
+        <h3 id="docs-title">Documents</h3>
+        <div class="sub" style="color:var(--muted);font-size:.85rem">Manuals and instructions for this asset</div>
+        <ul id="docs-list"></ul>
+        <div class="foot">
+          <label class="btn-outline">+ Attach files<input type="file" id="docs-input" multiple hidden /></label>
+          <button class="btn-primary" id="docs-close" type="button">Done</button>
+        </div>
+      </dialog>
     </section>
 
     <section class="tab-panel" id="panel-utility-use">
@@ -500,6 +685,187 @@
       document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
     });
   });
+
+  /* ---- Assets tab (data modeled on the SJN 10-year accrual plan sheet) ---- */
+  const THIS_YEAR = 2026;
+  const PLAN_YEARS = 10;
+  const fmt = (n) => '$' + Math.round(n).toLocaleString('en-US');
+
+  // remaining life is derived: expected life - (this year - year installed)
+  const assets = [
+    ['Admin HVAC #4', 'Admin Building', 'Trane', 2011, 15, 10000, ['HVAC4-manual.pdf']],
+    ['Parking Lot Seal/Stripe', 'Parking Lot', 'Local contractor', 2020, 7, 25000, []],
+    ['Projectors (2)', 'Church', 'Epson', 2015, 12, 55000, ['Epson-install-guide.pdf', 'Warranty.pdf']],
+    ['Admin HVAC #2', 'Admin Building', 'Trane', 2012, 15, 10000, ['HVAC2-manual.pdf']],
+    ['Admin HVAC #3', 'Admin Building', 'Trane', 2012, 15, 10000, []],
+    ['A&H Sound Board', 'Church', 'Allen & Heath', 2012, 15, 15000, ['SoundBoard-quickstart.pdf']],
+    ['Caulk Windows', 'Chapel', 'n/a', 2019, 10, 3000, []],
+    ['Carpet/Flooring', 'Lower Level', 'Shaw', 2011, 18, 20000, []],
+    ['Computer/Staff #3', 'Office', 'Dell', 2025, 5, 600, []],
+    ['Computer/Staff #4', 'Office', 'Dell', 2025, 5, 600, []],
+    ['Paint', 'Admin Offices', 'Sherwin-Williams', 2012, 18, 5000, []],
+  ].map(([name, location, manufacturer, installed, life, cost, docs], i) =>
+    ({ id: i, name, location, manufacturer, installed, life, cost, docs }));
+
+  const remaining = (a) => Math.max(0, a.life - (THIS_YEAR - a.installed));
+  const accrual = (a) => a.cost / a.life;
+
+  let view = 'details';
+  let sort = { key: 'remaining', dir: 1 };
+  let docsAssetId = null;
+
+  const sortValue = {
+    name: (a) => a.name.toLowerCase(),
+    location: (a) => a.location.toLowerCase(),
+    manufacturer: (a) => a.manufacturer.toLowerCase(),
+    life: (a) => a.life,
+    remaining,
+    cost: (a) => a.cost,
+    accrual,
+    docs: (a) => a.docs.length,
+  };
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const $ = (id) => document.getElementById(id);
+
+  function visibleAssets() {
+    const q = $('asset-search').value.trim().toLowerCase();
+    const loc = $('asset-location').value;
+    return assets
+      .filter((a) => !loc || a.location === loc)
+      .filter((a) => !q || [a.name, a.location, a.manufacturer].some((s) => s.toLowerCase().includes(q)))
+      .sort((a, b) => {
+        const x = sortValue[sort.key](a), y = sortValue[sort.key](b);
+        return (x > y ? 1 : x < y ? -1 : 0) * sort.dir;
+      });
+  }
+
+  function refreshLocations() {
+    const sel = $('asset-location'), cur = sel.value;
+    const locs = [...new Set(assets.map((a) => a.location))].sort();
+    sel.innerHTML = '<option value="">All locations</option>' +
+      locs.map((l) => `<option${l === cur ? ' selected' : ''}>${esc(l)}</option>`).join('');
+  }
+
+  function renderAssets() {
+    const rows = visibleAssets();
+
+    $('stat-count').textContent = assets.length;
+    $('stat-due').textContent = assets.filter((a) => remaining(a) <= 1).length;
+    $('stat-cost').textContent = fmt(assets.reduce((s, a) => s + a.cost, 0));
+    $('stat-accrual').textContent = fmt(assets.reduce((s, a) => s + accrual(a), 0));
+
+    const th = (key, label, cls = '') =>
+      `<th class="${cls}" data-sort="${key}">${label}${sort.key === key ? (sort.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
+
+    const planYears = Array.from({ length: PLAN_YEARS }, (_, i) => `${THIS_YEAR + i}/${String(THIS_YEAR + i + 1).slice(2)}`);
+
+    const head = view === 'details'
+      ? th('name', 'Asset') + th('location', 'Location') + th('manufacturer', 'Manufacturer') +
+        th('life', 'Expected life', 'num') + th('remaining', 'Remaining life', 'num') +
+        th('cost', 'Initial cost', 'num') + th('accrual', 'Annual accrual', 'num') + th('docs', 'Documents')
+      : th('name', 'Capital project') + th('life', 'Expected life', 'num') + th('remaining', 'Remaining', 'num') +
+        th('cost', 'Projected expense', 'num') + planYears.map((y) => `<th class="num" style="cursor:default">${y}</th>`).join('');
+
+    const body = rows.map((a) => {
+      const rem = remaining(a);
+      const pct = Math.min(100, (rem / a.life) * 100);
+      const state = rem <= 1 ? 'bad' : rem <= 3 ? 'warn' : '';
+      const nameCell = `<td><div class="name">${esc(a.name)}</div></td>`;
+      if (view === 'plan') {
+        return `<tr class="${rem <= 1 ? 'due' : ''}">${nameCell}
+          <td class="num">${a.life}</td><td class="num">${rem}</td><td class="num">${fmt(a.cost)}</td>
+          ${planYears.map(() => `<td class="num">${fmt(accrual(a))}</td>`).join('')}</tr>`;
+      }
+      return `<tr class="${rem <= 1 ? 'due' : ''}">
+        <td><div class="name">${esc(a.name)}</div><div class="sub">Installed ${a.installed}</div></td>
+        <td>${esc(a.location)}</td>
+        <td>${esc(a.manufacturer || '—')}</td>
+        <td class="num">${a.life} yrs</td>
+        <td class="num">${rem} yrs<span class="life-bar ${state}"><span style="width:${pct}%"></span></span></td>
+        <td class="num">${fmt(a.cost)}</td>
+        <td class="num">${fmt(accrual(a))}/yr</td>
+        <td><button class="doc-btn" data-docs="${a.id}" type="button">📎 ${a.docs.length} file${a.docs.length === 1 ? '' : 's'}</button></td>
+      </tr>`;
+    }).join('');
+
+    const totals = view === 'plan' && rows.length
+      ? `<tr><td class="name">Total</td><td></td><td></td><td class="num name">${fmt(rows.reduce((s, a) => s + a.cost, 0))}</td>` +
+        planYears.map(() => `<td class="num name">${fmt(rows.reduce((s, a) => s + accrual(a), 0))}</td>`).join('') + '</tr>'
+      : '';
+
+    $('asset-table').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body ||
+      '<tr><td colspan="9" class="panel-empty">No assets match.</td></tr>'}${totals}</tbody>`;
+  }
+
+  function renderDocs() {
+    const a = assets[docsAssetId];
+    $('docs-title').textContent = a.name;
+    $('docs-list').innerHTML = a.docs.length
+      ? a.docs.map((d, i) => `<li><span>📄 ${esc(d)}</span><button data-rm="${i}" type="button">Remove</button></li>`).join('')
+      : '<li class="empty">No documents attached yet.</li>';
+  }
+
+  $('asset-table').addEventListener('click', (e) => {
+    const h = e.target.closest('th[data-sort]');
+    if (h) {
+      sort = { key: h.dataset.sort, dir: sort.key === h.dataset.sort ? -sort.dir : 1 };
+      renderAssets();
+    }
+    const d = e.target.closest('[data-docs]');
+    if (d) {
+      docsAssetId = Number(d.dataset.docs);
+      renderDocs();
+      $('docs-dialog').showModal();
+    }
+  });
+
+  $('asset-view').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    view = b.dataset.view;
+    document.querySelectorAll('#asset-view button').forEach((x) => x.classList.toggle('active', x === b));
+    renderAssets();
+  });
+
+  $('asset-search').addEventListener('input', renderAssets);
+  $('asset-location').addEventListener('change', renderAssets);
+  $('asset-add-toggle').addEventListener('click', () => $('asset-form').classList.toggle('open'));
+  $('asset-cancel').addEventListener('click', () => $('asset-form').classList.remove('open'));
+
+  $('asset-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    assets.push({
+      id: assets.length, name: f.name, location: f.location, manufacturer: f.manufacturer,
+      installed: Number(f.installed), life: Number(f.life), cost: Number(f.cost),
+      docs: [...$('asset-manuals').files].map((x) => x.name),
+    });
+    e.target.reset();
+    e.target.classList.remove('open');
+    refreshLocations();
+    renderAssets();
+  });
+
+  $('docs-input').addEventListener('change', (e) => {
+    assets[docsAssetId].docs.push(...[...e.target.files].map((f) => f.name));
+    e.target.value = '';
+    renderDocs();
+    renderAssets();
+  });
+
+  $('docs-list').addEventListener('click', (e) => {
+    const rm = e.target.closest('[data-rm]');
+    if (!rm) return;
+    assets[docsAssetId].docs.splice(Number(rm.dataset.rm), 1);
+    renderDocs();
+    renderAssets();
+  });
+
+  $('docs-close').addEventListener('click', () => $('docs-dialog').close());
+
+  refreshLocations();
+  renderAssets();
 </script>
 
 </body>
