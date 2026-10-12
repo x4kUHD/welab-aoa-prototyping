@@ -19,10 +19,11 @@
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     color: var(--text);
-    background: #fff;
+    background: var(--bg);
   }
 
   header {
+    background: #fff;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -74,7 +75,6 @@
     max-width: 1440px;
     margin: 0 auto;
     padding: 32px;
-    background: var(--bg);
     min-height: calc(100vh - 73px);
   }
 
@@ -447,6 +447,21 @@
   }
   .asset-form .summary dt { font-size: 0.7rem; color: var(--muted); }
   .asset-form .summary dd { margin: 2px 0 0; font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .asset-form .worth { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; }
+  .asset-form .worth .factors, .asset-form .worth .verdict { grid-column: 1 / -1; }
+  .asset-form .worth .factors { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 0.8rem; }
+  .asset-form .worth .factors span { display: block; }
+  .asset-form .worth .ok::before { content: "\2713  "; color: #15803d; font-weight: 700; }
+  .asset-form .worth .no::before { content: "\2717  "; color: var(--muted); }
+  .asset-form .worth .no { color: var(--muted); }
+  .asset-form label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); }
+  .asset-form .verdict {
+    padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); border-left: 3px solid var(--muted);
+    background: var(--bg); font-size: 0.82rem;
+  }
+  .asset-form .verdict.yes { border-left-color: #15803d; }
+  .asset-form .verdict.maybe { border-left-color: #d97706; }
+  .asset-form .verdict b { font-weight: 600; }
   .asset-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--muted); }
   .asset-form .actions { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid var(--border); }
 
@@ -532,6 +547,8 @@
   }
 
   .doc-btn:hover { background: #f5f5f5; }
+  .icon-btn { display: inline-flex; padding: 6px; color: var(--muted); }
+  .icon-btn:hover { color: #b91c1c; }
 
   dialog.docs {
     border: 1px solid var(--border);
@@ -718,6 +735,17 @@
             <dl class="summary" id="asset-summary"></dl>
           </section>
 
+          <section class="fgroup worth full" id="asset-worth">
+            <h4>Worth tracking?</h4>
+            <p class="hint">Cost and life are checked automatically; tick the rest that apply.</p>
+            <div class="factors" id="worth-auto"></div>
+            <label class="check"><input type="checkbox" name="f_safety" /> Safety or code critical (fire, egress, elevator, boiler)</label>
+            <label class="check"><input type="checkbox" name="f_ops" /> Parish operations stop or move if it fails</label>
+            <label class="check"><input type="checkbox" name="f_capital" /> Capital replacement, not routine upkeep or consumable</label>
+            <label class="check"><input type="checkbox" name="f_warranty" /> Warranty, service contract or insurance depends on it</label>
+            <div class="verdict" id="worth-verdict"></div>
+          </section>
+
           <div class="actions">
             <button class="btn-outline" type="button" id="asset-cancel">Cancel</button>
             <button class="btn-primary" type="submit">Save asset</button>
@@ -795,6 +823,9 @@
   ].map(([name, location, manufacturer, installed, life, cost, docs], i) =>
     ({ id: i, name, location, manufacturer, installed, life, cost, docs }));
 
+  let nextId = assets.length;
+  const assetById = (id) => assets.find((a) => a.id === id);
+
   const remaining = (a) => Math.max(0, a.life - (THIS_YEAR - a.installed));
   const accrual = (a) => a.cost / a.life;
 
@@ -851,7 +882,7 @@
     const head = view === 'details'
       ? th('name', 'Asset') + th('location', 'Location') + th('manufacturer', 'Manufacturer') +
         th('life', 'Expected life', 'num') + th('remaining', 'Remaining life', 'num') +
-        th('cost', 'Initial cost', 'num') + th('accrual', 'Annual accrual', 'num') + th('docs', 'Documents')
+        th('cost', 'Initial cost', 'num') + th('accrual', 'Annual accrual', 'num') + th('docs', 'Documents') + '<th style="cursor:default"></th>'
       : th('name', 'Capital project') + th('life', 'Expected life', 'num') + th('remaining', 'Remaining', 'num') +
         th('cost', 'Projected expense', 'num') + planYears.map((y) => `<th class="num" style="cursor:default">${y}</th>`).join('');
 
@@ -874,6 +905,7 @@
         <td class="num">${fmt(a.cost)}</td>
         <td class="num">${fmt(accrual(a))}/yr</td>
         <td><button class="doc-btn" data-docs="${a.id}" type="button">📎 ${a.docs.length} file${a.docs.length === 1 ? '' : 's'}</button></td>
+        <td><button class="doc-btn icon-btn" data-remove="${a.id}" type="button" title="Delete asset" aria-label="Delete ${esc(a.name)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button></td>
       </tr>`;
     }).join('');
 
@@ -887,7 +919,7 @@
   }
 
   function renderDocs() {
-    const a = assets[docsAssetId];
+    const a = assetById(docsAssetId);
     $('docs-title').textContent = a.name;
     $('docs-list').innerHTML = a.docs.length
       ? a.docs.map((d, i) => `<li><span>📄 ${esc(d)}</span><button data-rm="${i}" type="button">Remove</button></li>`).join('')
@@ -899,6 +931,16 @@
     if (h) {
       sort = { key: h.dataset.sort, dir: sort.key === h.dataset.sort ? -sort.dir : 1 };
       renderAssets();
+    }
+    const r = e.target.closest('[data-remove]');
+    if (r) {
+      const a = assetById(Number(r.dataset.remove));
+      if (confirm(`Remove "${a.name}" from tracked assets?`)) {
+        assets.splice(assets.indexOf(a), 1);
+        refreshLocations();
+        renderAssets();
+      }
+      return;
     }
     const d = e.target.closest('[data-docs]');
     if (d) {
@@ -1036,6 +1078,32 @@
   form.addEventListener('reset', () => setTimeout(renderSummary));
   renderSummary();
 
+  // ---- Worthwhile asset factors ----
+  // Two factors come from the entered numbers; four are ticked by the user.
+  const WORTH_MIN_COST = 2500, WORTH_MIN_LIFE = 3;
+  function renderWorth() {
+    const life = Number(form.elements.life.value), cost = Number(form.elements.cost.value);
+    const auto = [
+      [cost >= WORTH_MIN_COST, `Replacement cost ${cost ? fmt(cost) : '—'} (threshold ${fmt(WORTH_MIN_COST)})`],
+      [life >= WORTH_MIN_LIFE, `Expected life ${life ? life + ' yrs' : '—'} (threshold ${WORTH_MIN_LIFE} yrs)`],
+    ];
+    $('worth-auto').innerHTML = auto.map(([ok, t]) => `<span class="${ok ? 'ok' : 'no'}">${t}</span>`).join('');
+    const manual = ['f_safety', 'f_ops', 'f_capital', 'f_warranty'].filter((n) => form.elements[n].checked).length;
+    const score = auto.filter((a) => a[0]).length + manual;
+    const v = $('worth-verdict');
+    if (!life && !cost) { v.className = 'verdict'; v.innerHTML = 'Enter life and cost to see a recommendation.'; return; }
+    const [cls, msg] = score >= 4 ? ['yes', '<b>Worth tracking</b> — add it to the accrual plan.']
+      : score >= 2 ? ['maybe', '<b>Borderline</b> — track it if the finance council wants visibility.']
+      : ['', '<b>Probably not worth tracking</b> — handle it as routine maintenance.'];
+    v.className = 'verdict ' + cls;
+    v.innerHTML = `${msg} <span style="color:var(--muted)">(${score} of 6 factors)</span>`;
+  }
+  ['life', 'cost'].forEach((n) => form.elements[n].addEventListener('input', renderWorth));
+  form.addEventListener('change', renderWorth);
+  form.addEventListener('click', () => setTimeout(renderWorth));
+  form.addEventListener('reset', () => setTimeout(renderWorth));
+  renderWorth();
+
   function resetSuggestions() {
     ['life', 'cost'].forEach((k) => { suggestState[k] = null; renderSuggest(k); });
   }
@@ -1053,7 +1121,7 @@
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.target));
     assets.push({
-      id: assets.length, name: f.name, location: f.location, manufacturer: f.manufacturer,
+      id: nextId++, name: f.name, location: f.location, manufacturer: f.manufacturer,
       installed: Number(f.installed), life: Number(f.life), cost: Number(f.cost),
       docs: [...$('asset-manuals').files].map((x) => x.name),
     });
@@ -1065,7 +1133,7 @@
   });
 
   $('docs-input').addEventListener('change', (e) => {
-    assets[docsAssetId].docs.push(...[...e.target.files].map((f) => f.name));
+    assetById(docsAssetId).docs.push(...[...e.target.files].map((f) => f.name));
     e.target.value = '';
     renderDocs();
     renderAssets();
@@ -1074,7 +1142,7 @@
   $('docs-list').addEventListener('click', (e) => {
     const rm = e.target.closest('[data-rm]');
     if (!rm) return;
-    assets[docsAssetId].docs.splice(Number(rm.dataset.rm), 1);
+    assetById(docsAssetId).docs.splice(Number(rm.dataset.rm), 1);
     renderDocs();
     renderAssets();
   });
