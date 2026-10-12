@@ -403,14 +403,81 @@
 
   .asset-form {
     display: none;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 16px;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
   }
 
   .asset-form.open { display: grid; }
+  .asset-form .fgroup {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: start;
+    gap: 12px 14px;
+  }
+  .asset-form .lifecost {
+    grid-template-columns: 1fr;
+    padding: 14px 16px;
+    border-radius: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+  }
+  .asset-form .full, .asset-form h4, .asset-form .hint, .asset-form .summary { grid-column: 1 / -1; }
+  .asset-form h4 {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+  }
+  .asset-form .hint { margin: -6px 0 0; font-size: 0.75rem; color: var(--muted); }
+  .asset-form .lifecost input { background: #fff; }
+  .asset-form .summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 4px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .asset-form .summary dt { font-size: 0.7rem; color: var(--muted); }
+  .asset-form .summary dd { margin: 2px 0 0; font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
   .asset-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--muted); }
-  .asset-form .actions { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; }
+  .asset-form .actions { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid var(--border); }
+
+  .suggest { display: none; margin-top: 2px; font-size: 0.78rem; color: var(--text); }
+  .suggest.show { display: block; }
+  .suggest .row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 6px;
+    background: var(--bg);
+  }
+  .suggest .tag { color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-size: 0.68rem; }
+  .suggest .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .suggest .spacer { flex: 1; }
+  .suggest .basis { margin: 3px 2px 0; color: var(--muted); font-size: 0.72rem; line-height: 1.35; }
+  .suggest.muted .row { border-left-color: var(--border); color: var(--muted); }
+  .suggest button {
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-weight: 500;
+    color: var(--blue);
+    cursor: pointer;
+  }
+  .suggest button.quiet { color: var(--muted); font-weight: 400; }
+  .suggest button:hover { text-decoration: underline; }
 
   .table-wrap { overflow-x: auto; }
 
@@ -621,15 +688,36 @@
         </div>
 
         <form class="asset-form" id="asset-form">
-          <label>Asset name<input name="name" required placeholder="e.g. Admin HVAC #5" /></label>
-          <label>Location<input name="location" required placeholder="e.g. Admin Building" /></label>
-          <label>Manufacturer<input name="manufacturer" placeholder="e.g. Trane" /></label>
-          <label>Year installed<input name="installed" type="number" min="1950" max="2026" value="2026" required /></label>
-          <label>Expected life (yrs)<input name="life" type="number" min="1" required /></label>
-          <label>Initial cost ($)<input name="cost" type="number" min="0" required /></label>
-          <label style="grid-column: 1 / -1">Manuals / instructions
-            <input name="manuals" id="asset-manuals" type="file" multiple />
-          </label>
+          <section class="fgroup details">
+            <h4>Asset details</h4>
+            <label class="full">Asset name<input name="name" required placeholder="e.g. Admin HVAC #5" /></label>
+            <label>Asset type
+              <select name="type" id="asset-type">
+                <option value="">Select a type…</option>
+              </select>
+            </label>
+            <label>Location<input name="location" required placeholder="e.g. Admin Building" /></label>
+            <label>Manufacturer<input name="manufacturer" placeholder="e.g. Trane" /></label>
+            <label>Year installed<input name="installed" type="number" min="1950" max="2026" value="2026" required /></label>
+            <label class="full">Manuals / instructions
+              <input name="manuals" id="asset-manuals" type="file" multiple />
+            </label>
+          </section>
+
+          <section class="fgroup lifecost">
+            <h4>Life &amp; cost</h4>
+            <p class="hint">Suggestions update from type, manufacturer and year installed.</p>
+            <label>Expected life (yrs)
+              <input name="life" type="number" min="1" required />
+              <div class="suggest" id="suggest-life"></div>
+            </label>
+            <label>Initial cost ($)
+              <input name="cost" type="number" min="0" required />
+              <div class="suggest" id="suggest-cost"></div>
+            </label>
+            <dl class="summary" id="asset-summary"></dl>
+          </section>
+
           <div class="actions">
             <button class="btn-outline" type="button" id="asset-cancel">Cancel</button>
             <button class="btn-primary" type="submit">Save asset</button>
@@ -828,10 +916,138 @@
     renderAssets();
   });
 
+  // ---- Suggested life expectancy / price ----
+  // Stand-in data: base values per asset type, adjusted by manufacturer and install year.
+  const BENCHMARKS = {
+    'HVAC unit':         { life: 15, cost: 10000, source: 'parish HVAC history' },
+    'Roofing':           { life: 25, cost: 60000, source: 'commercial membrane roofs' },
+    'Parking lot':       { life: 7,  cost: 25000, source: 'seal/stripe cycle' },
+    'AV / Sound':        { life: 12, cost: 15000, source: 'mixing boards and projectors' },
+    'Computer / IT':     { life: 5,  cost: 800,   source: 'standard device refresh cycle' },
+    'Flooring / Carpet': { life: 18, cost: 20000, source: 'moderate-traffic commercial carpet' },
+    'Paint / Finish':    { life: 18, cost: 5000,  source: 'interior repaint interval' },
+    'Windows':           { life: 10, cost: 3000,  source: 'caulk / reseal interval' },
+  };
+  // lifeAdd: years added to base life; costMult: price multiplier vs. base
+  const MANUFACTURERS = {
+    'trane':         { lifeAdd: 2,  costMult: 1.15 },
+    'carrier':       { lifeAdd: 1,  costMult: 1.10 },
+    'lennox':        { lifeAdd: 1,  costMult: 1.10 },
+    'goodman':       { lifeAdd: -2, costMult: 0.85 },
+    'allen & heath': { lifeAdd: 2,  costMult: 1.20 },
+    'epson':         { lifeAdd: 0,  costMult: 1.00 },
+    'dell':          { lifeAdd: 0,  costMult: 1.00 },
+    'hp':            { lifeAdd: -1, costMult: 0.90 },
+    'shaw':          { lifeAdd: 2,  costMult: 1.10 },
+    'sherwin-williams': { lifeAdd: 2, costMult: 1.10 },
+  };
+  const INFLATION = 0.03; // yearly price drift used to restate cost to the install year
+  Object.keys(BENCHMARKS).forEach((t) => $('asset-type').add(new Option(t, t)));
+
+  const form = $('asset-form');
+  const SUGGEST = {
+    life: { box: $('suggest-life'), show: (v) => v + ' yrs' },
+    cost: { box: $('suggest-cost'), show: (v) => fmt(v) },
+  };
+  const suggestState = { life: null, cost: null }; // null | {value, prev, status, basis}
+
+  function computeSuggestion() {
+    const base = BENCHMARKS[form.elements.type.value];
+    if (!base) return null;
+    const mfr = MANUFACTURERS[form.elements.manufacturer.value.trim().toLowerCase()];
+    const year = Number(form.elements.installed.value);
+    const yearsAgo = year ? Math.max(0, THIS_YEAR - year) : 0;
+    const life = Math.max(1, base.life + (mfr ? mfr.lifeAdd : 0));
+    const cost = Math.round(base.cost * (mfr ? mfr.costMult : 1) / Math.pow(1 + INFLATION, yearsAgo) / 50) * 50;
+    const mfrName = form.elements.manufacturer.value.trim();
+    const bits = [`${form.elements.type.value} base (${base.source})`];
+    if (mfr) bits.push(`${mfrName} adjustment`);
+    if (yearsAgo) bits.push(`${year} install-year pricing`);
+    const end = year ? ` Projected end of life: ${year + life}.` : '';
+    return {
+      life: { value: life, basis: `Based on ${bits.slice(0, mfr ? 2 : 1).join(' + ')}.${end}` },
+      cost: { value: cost, basis: `Based on ${bits.join(' + ')}.` },
+    };
+  }
+
+  function renderSuggest(k) {
+    const { box, show } = SUGGEST[k], st = suggestState[k];
+    box.className = 'suggest';
+    if (!st) { box.innerHTML = ''; return; }
+    box.classList.add('show');
+    if (st.status === 'accepted') {
+      box.classList.add('muted');
+      box.innerHTML = `<div class="row"><span>Applied suggestion ${show(st.value)}</span><span class="spacer"></span><button type="button" class="quiet" data-act="undo" data-k="${k}">Undo</button></div>`;
+    } else if (st.status === 'rejected') {
+      box.classList.add('muted');
+      box.innerHTML = `<div class="row"><span>Suggestion dismissed</span><span class="spacer"></span><button type="button" class="quiet" data-act="restore" data-k="${k}">Show</button></div>`;
+    } else {
+      box.innerHTML = `<div class="row"><span class="tag">Suggested</span><span class="val">${show(st.value)}</span><span class="spacer"></span>
+        <button type="button" data-act="accept" data-k="${k}">Accept</button>
+        <button type="button" class="quiet" data-act="reject" data-k="${k}">Dismiss</button></div>
+        <div class="basis">${st.basis}</div>`;
+    }
+  }
+
+  // recompute whenever type, manufacturer or year changes; a changed value re-opens the suggestion
+  function refreshSuggestions() {
+    const next = computeSuggestion();
+    ['life', 'cost'].forEach((k) => {
+      const old = suggestState[k];
+      if (!next) suggestState[k] = null;
+      else if (!old) suggestState[k] = { ...next[k], prev: '', status: 'pending' };
+      else if (old.value !== next[k].value) suggestState[k] = { ...next[k], prev: old.prev, status: 'pending' };
+      else old.basis = next[k].basis;
+      renderSuggest(k);
+    });
+  }
+  ['type', 'manufacturer', 'installed'].forEach((n) => {
+    form.elements[n].addEventListener(n === 'type' ? 'change' : 'input', refreshSuggestions);
+  });
+
+  document.querySelectorAll('.suggest').forEach((box) => box.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    e.preventDefault();
+    const k = btn.dataset.k, st = suggestState[k], input = form.elements[k];
+    if (btn.dataset.act === 'accept') { st.prev = input.value; input.value = st.value; st.status = 'accepted'; }
+    if (btn.dataset.act === 'undo') { input.value = st.prev; st.status = 'pending'; }
+    if (btn.dataset.act === 'reject') st.status = 'rejected';
+    if (btn.dataset.act === 'restore') st.status = 'pending';
+    renderSuggest(k);
+  }));
+
+  // hand-editing an accepted value returns the suggestion to pending
+  ['life', 'cost'].forEach((k) => form.elements[k].addEventListener('input', () => {
+    const st = suggestState[k];
+    if (st && st.status === 'accepted' && Number(form.elements[k].value) !== st.value) { st.status = 'pending'; renderSuggest(k); }
+  }));
+
+  // live preview of what the entered life / cost / year mean for the plan
+  function renderSummary() {
+    const life = Number(form.elements.life.value), cost = Number(form.elements.cost.value), year = Number(form.elements.installed.value);
+    const dash = '\u2014';
+    $('asset-summary').innerHTML = `
+      <div><dt>Annual accrual</dt><dd>${life && cost ? fmt(cost / life) + ' / yr' : dash}</dd></div>
+      <div><dt>Replace by</dt><dd>${life && year ? year + life : dash}</dd></div>`;
+  }
+  ['life', 'cost', 'installed'].forEach((n) => form.elements[n].addEventListener('input', renderSummary));
+  form.addEventListener('click', () => setTimeout(renderSummary));
+  form.addEventListener('reset', () => setTimeout(renderSummary));
+  renderSummary();
+
+  function resetSuggestions() {
+    ['life', 'cost'].forEach((k) => { suggestState[k] = null; renderSuggest(k); });
+  }
+
   $('asset-search').addEventListener('input', renderAssets);
   $('asset-location').addEventListener('change', renderAssets);
   $('asset-add-toggle').addEventListener('click', () => $('asset-form').classList.toggle('open'));
-  $('asset-cancel').addEventListener('click', () => $('asset-form').classList.remove('open'));
+  $('asset-cancel').addEventListener('click', () => {
+    $('asset-form').reset();
+    resetSuggestions();
+    $('asset-form').classList.remove('open');
+  });
 
   $('asset-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -842,6 +1058,7 @@
       docs: [...$('asset-manuals').files].map((x) => x.name),
     });
     e.target.reset();
+    resetSuggestions();
     e.target.classList.remove('open');
     refreshLocations();
     renderAssets();
