@@ -522,6 +522,22 @@
   table.assets tr.due .name { color: #b91c1c; }
   table.assets tr.accrual-hdr th { cursor: default; }
 
+  .accrual-input {
+    width: 84px; text-align: right; font: inherit; padding: 3px 6px;
+    border: 1px solid transparent; border-radius: 4px; background: transparent;
+  }
+  .accrual-input:hover { border-color: var(--border); }
+  .accrual-input:focus { border-color: #888; background: #fff; outline: none; }
+  .accrual-input.edited { background: #fff8e1; border-color: #f0d98a; }
+  .accrual-reset { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 0.75rem; text-decoration: underline; padding: 0 0 0 4px; }
+
+  .manuals-found { margin-top: 4px; font-size: 0.8rem; }
+  .manuals-found .tag { color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-size: 0.68rem; }
+  .manuals-found label { display: flex; gap: 6px; align-items: center; margin: 3px 0; font-weight: 400; }
+  .manuals-found label input { width: auto; }
+  dialog.docs .found { border-top: 1px solid #eee; margin-top: 8px; padding-top: 8px; font-size: 0.85rem; }
+  dialog.docs .found li button { color: #1d4ed8; }
+
   .life-bar {
     display: inline-block;
     width: 60px;
@@ -759,6 +775,7 @@
         <h3 id="docs-title">Documents</h3>
         <div class="sub" style="color:var(--muted);font-size:.85rem">Manuals and instructions for this asset</div>
         <ul id="docs-list"></ul>
+        <div class="found" id="docs-found"></div>
         <div class="foot">
           <label class="btn-outline">+ Attach files<input type="file" id="docs-input" multiple hidden /></label>
           <button class="btn-primary" id="docs-close" type="button">Done</button>
@@ -827,7 +844,7 @@
   const assetById = (id) => assets.find((a) => a.id === id);
 
   const remaining = (a) => Math.max(0, a.life - (THIS_YEAR - a.installed));
-  const accrual = (a) => a.cost / a.life;
+  const accrual = (a) => a.accrualOverride ?? a.cost / a.life; // override = manually edited
 
   let view = 'details';
   let sort = { key: 'remaining', dir: 1 };
@@ -903,7 +920,7 @@
         <td class="num">${a.life} yrs</td>
         <td class="num">${rem} yrs<span class="life-bar ${state}"><span style="width:${pct}%"></span></span></td>
         <td class="num">${fmt(a.cost)}</td>
-        <td class="num">${fmt(accrual(a))}/yr</td>
+        <td class="num"><input class="accrual-input${a.accrualOverride != null ? ' edited' : ''}" type="number" min="0" step="1" value="${Math.round(accrual(a))}" data-accrual="${a.id}" aria-label="Annual accrual for ${esc(a.name)}" />${a.accrualOverride != null ? `<button class="accrual-reset" data-accrual-reset="${a.id}" type="button" title="Back to cost ÷ life (${fmt(a.cost / a.life)})">reset</button>` : ''}</td>
         <td><button class="doc-btn" data-docs="${a.id}" type="button">📎 ${a.docs.length} file${a.docs.length === 1 ? '' : 's'}</button></td>
         <td><button class="doc-btn icon-btn" data-remove="${a.id}" type="button" title="Delete asset" aria-label="Delete ${esc(a.name)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button></td>
       </tr>`;
@@ -924,6 +941,12 @@
     $('docs-list').innerHTML = a.docs.length
       ? a.docs.map((d, i) => `<li><span>📄 ${esc(d)}</span><button data-rm="${i}" type="button">Remove</button></li>`).join('')
       : '<li class="empty">No documents attached yet.</li>';
+    const found = findManuals('', a.manufacturer).filter((n) => !a.docs.includes(n));
+    $('docs-found').innerHTML = found.length
+      ? `<b>Manuals found for ${esc(a.manufacturer)}</b><ul>` +
+        found.map((n, i) => `<li><span>📄 ${esc(n)}</span><button data-add="${i}" type="button">+ Attach</button></li>`).join('') + '</ul>'
+      : '';
+    $('docs-found').hidden = !found.length;
   }
 
   $('asset-table').addEventListener('click', (e) => {
@@ -931,6 +954,12 @@
     if (h) {
       sort = { key: h.dataset.sort, dir: sort.key === h.dataset.sort ? -sort.dir : 1 };
       renderAssets();
+    }
+    const rs = e.target.closest('[data-accrual-reset]');
+    if (rs) {
+      delete assetById(Number(rs.dataset.accrualReset)).accrualOverride;
+      renderAssets();
+      return;
     }
     const r = e.target.closest('[data-remove]');
     if (r) {
@@ -948,6 +977,18 @@
       renderDocs();
       $('docs-dialog').showModal();
     }
+  });
+
+  $('asset-table').addEventListener('change', (e) => {
+    const i = e.target.closest('[data-accrual]');
+    if (!i) return;
+    const a = assetById(Number(i.dataset.accrual));
+    const v = i.value === '' ? NaN : Number(i.value);
+    a.accrualOverride = Number.isFinite(v) && v >= 0 && Math.round(v) !== Math.round(a.cost / a.life) ? v : undefined;
+    renderAssets();
+  });
+  $('asset-table').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.matches('[data-accrual]')) e.target.blur();
   });
 
   $('asset-view').addEventListener('click', (e) => {
@@ -986,7 +1027,51 @@
   const INFLATION = 0.03; // yearly price drift used to restate cost to the install year
   Object.keys(BENCHMARKS).forEach((t) => $('asset-type').add(new Option(t, t)));
 
+  // ---- Automatic manual lookup ----
+  // Stand-in catalog: manuals matched by manufacturer (most specific) then asset type.
+  const MANUAL_CATALOG = {
+    mfr: {
+      'trane':         ['Trane-installation-manual.pdf', 'Trane-maintenance-schedule.pdf'],
+      'carrier':       ['Carrier-installation-manual.pdf', 'Carrier-owners-guide.pdf'],
+      'lennox':        ['Lennox-installation-manual.pdf'],
+      'goodman':       ['Goodman-installation-manual.pdf'],
+      'allen & heath': ['AllenHeath-user-guide.pdf', 'AllenHeath-quickstart.pdf'],
+      'epson':         ['Epson-user-guide.pdf', 'Epson-install-guide.pdf'],
+      'dell':          ['Dell-setup-guide.pdf'],
+      'hp':            ['HP-setup-guide.pdf'],
+      'shaw':          ['Shaw-care-and-maintenance.pdf'],
+      'sherwin-williams': ['SW-product-data-sheet.pdf'],
+    },
+    type: {
+      'HVAC unit':         ['Filter-change-and-seasonal-service-checklist.pdf'],
+      'Roofing':           ['Roof-inspection-checklist.pdf'],
+      'Parking lot':       ['Seal-and-stripe-spec-sheet.pdf'],
+      'AV / Sound':        ['AV-system-operating-procedures.pdf'],
+      'Computer / IT':     ['Device-refresh-checklist.pdf'],
+      'Flooring / Carpet': ['Flooring-care-guide.pdf'],
+      'Paint / Finish':    ['Paint-touch-up-guide.pdf'],
+      'Windows':           ['Window-reseal-instructions.pdf'],
+    },
+  };
+  function findManuals(type, manufacturer) {
+    const m = MANUAL_CATALOG.mfr[(manufacturer || '').trim().toLowerCase()] || [];
+    const t = MANUAL_CATALOG.type[type] || [];
+    return [...m, ...t];
+  }
+  const manualsBox = document.createElement('div');
+  manualsBox.className = 'manuals-found';
+  $('asset-manuals').after(manualsBox);
+  function renderFoundManuals() {
+    const found = findManuals($('asset-type').value, $('asset-form').elements.manufacturer.value);
+    manualsBox.innerHTML = found.length
+      ? `<div class="tag">Found manuals — attached on save</div>` +
+        found.map((n) => `<label><input type="checkbox" name="auto_manual" value="${esc(n)}" checked /> 📄 ${esc(n)}</label>`).join('')
+      : '';
+  }
+
   const form = $('asset-form');
+  ['type', 'manufacturer'].forEach((n) => form.elements[n].addEventListener('input', renderFoundManuals));
+  form.addEventListener('reset', () => setTimeout(renderFoundManuals));
   const SUGGEST = {
     life: { box: $('suggest-life'), show: (v) => v + ' yrs' },
     cost: { box: $('suggest-cost'), show: (v) => fmt(v) },
@@ -1123,7 +1208,10 @@
     assets.push({
       id: nextId++, name: f.name, location: f.location, manufacturer: f.manufacturer,
       installed: Number(f.installed), life: Number(f.life), cost: Number(f.cost),
-      docs: [...$('asset-manuals').files].map((x) => x.name),
+      docs: [...new Set([
+        ...[...$('asset-manuals').files].map((x) => x.name),
+        ...[...e.target.querySelectorAll('[name=auto_manual]:checked')].map((x) => x.value),
+      ])],
     });
     e.target.reset();
     resetSuggestions();
@@ -1135,6 +1223,16 @@
   $('docs-input').addEventListener('change', (e) => {
     assetById(docsAssetId).docs.push(...[...e.target.files].map((f) => f.name));
     e.target.value = '';
+    renderDocs();
+    renderAssets();
+  });
+
+  $('docs-found').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-add]');
+    if (!b) return;
+    const a = assetById(docsAssetId);
+    const found = findManuals('', a.manufacturer).filter((n) => !a.docs.includes(n));
+    a.docs.push(found[Number(b.dataset.add)]);
     renderDocs();
     renderAssets();
   });
